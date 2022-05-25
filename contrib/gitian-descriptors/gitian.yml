@@ -1,0 +1,64 @@
+---
+name: "primecoin"
+suites:
+- "bionic"
+architectures:
+- "amd64"
+packages:
+- "qt4-qmake"
+- "libqt4-dev"
+- "libboost-system-dev"
+- "libboost-filesystem-dev"
+- "libboost-program-options-dev"
+- "libboost-thread-dev"
+- "libssl1.0-dev"
+- "libpng-dev"
+- "git-core"
+- "unzip"
+- "pkg-config"
+reference_datetime: "2011-01-30 00:00:00"
+remotes:
+- "url": "https://github.com/primecoin/primecoin"
+  "dir": "primecoin"
+files:
+- "db-4.8.30.NC.tar.gz"
+- "miniupnpc-1.6.tar.gz"
+- "qrencode-3.2.0.tar.bz2"
+script: |
+  INSTDIR="$HOME/install"
+  export LIBRARY_PATH="$INSTDIR/lib"
+  #
+  tar xzf db-4.8.30.NC.tar.gz
+  cd db-4.8.30.NC
+  sed -i.old 's/__atomic_compare_exchange/__atomic_compare_exchange_db/' dbinc/atomic.h
+  sed -i.old 's/atomic_init/atomic_init_db/' dbinc/atomic.h mp/mp_region.c mp/mp_mvcc.c mp/mp_fget.c mutex/mut_method.c mutex/mut_tas.c
+  cd build_unix
+  ../dist/configure --prefix=$INSTDIR --disable-shared --enable-cxx --disable-replication --with-pic
+  make $MAKEOPTS
+  make install
+  cd ../..
+  #
+  tar xzf miniupnpc-1.6.tar.gz
+  cd miniupnpc-1.6
+  INSTALLPREFIX=$INSTDIR make $MAKEOPTS install
+  cd ..
+  #
+  tar xjf qrencode-3.2.0.tar.bz2
+  cd qrencode-3.2.0
+  ./configure --prefix=$INSTDIR --enable-static --disable-shared
+  make $MAKEOPTS install
+  cd ..
+  #
+  cd primecoin
+  mkdir -p $OUTDIR/src
+  git archive HEAD | tar -x -C $OUTDIR/src
+  cp $OUTDIR/src/doc/README.md $OUTDIR
+  cp $OUTDIR/src/COPYING $OUTDIR
+  cd src
+  make -f makefile.unix STATIC=1 OPENSSL_INCLUDE_PATH="$INSTDIR/include" OPENSSL_LIB_PATH="$INSTDIR/lib" $MAKEOPTS primecoind USE_UPNP=1 DEBUGFLAGS=
+  mkdir -p $OUTDIR/bin/$GBUILD_BITS
+  install -s primecoind $OUTDIR/bin/$GBUILD_BITS
+  cd ..
+  qmake INCLUDEPATH="$INSTDIR/include" LIBS="-L$INSTDIR/lib" RELEASE=1 USE_QRCODE=1
+  make $MAKEOPTS
+  install primecoin-qt $OUTDIR/bin/$GBUILD_BITS
